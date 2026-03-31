@@ -13,14 +13,14 @@ SAVE_DIR = "malpractice_logs"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 # --- JavaScript for Browser-Side Audio ---
-# This solves the "server cannot play sound" problem
+# This injects a small script to play a 1000Hz beep for 500ms
 def play_browser_beep():
     components.html(
         """
         <script>
         var context = new (window.AudioContext || window.webkitAudioContext)();
         var oscillator = context.createOscillator();
-        oscillator.type = 'sine';
+        oscillator.type = 'square'; // 'square' is louder and more "beepy"
         oscillator.frequency.setValueAtTime(1000, context.currentTime);
         oscillator.connect(context.destination);
         oscillator.start();
@@ -35,7 +35,7 @@ class ProctorProcessor(VideoTransformerBase):
     def __init__(self):
         self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
         self.inattention_start = None
-        self.malpractice_confirmed = False
+        self.is_violating = False  # Flag for the UI to play sound
         self.last_snap_time = 0
 
     def transform(self, frame):
@@ -46,46 +46,48 @@ class ProctorProcessor(VideoTransformerBase):
         # Detect faces
         faces = self.face_cascade.detectMultiScale(gray, 1.3, 5)
 
-        if len(faces) == 1:
-            # ✅ Status: Normal
-            self.inattention_start = None
-            self.malpractice_confirmed = False
-            (x, y, w, h) = faces[0]
-            cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
-            cv2.putText(img, "STATUS: ACTIVE", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-            
-        elif len(faces) > 1:
-            # ⚠️ Status: Multiple People (Malpractice)
-            cv2.putText(img, "WARNING: MULTIPLE PEOPLE", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-            self._trigger_violation(img, "Multiple Persons")
+        # 1. CHECK FOR MULTIPLE PEOPLE
+        if len(faces) > 1:
+            self.is_violating = True
+            self._draw_warning(img, "MALPRACTICE: MULTIPLE PEOPLE")
+            self._take_snapshot(img, "Multiple_People")
 
-        else:
-            # ❌ Status: No Face / Looking Away
+        # 2. CHECK FOR LOOKING AWAY (No face detected)
+        elif len(faces) == 0:
             if self.inattention_start is None:
                 self.inattention_start = time.time()
             
             elapsed = time.time() - self.inattention_start
             
             if elapsed >= 2.0:
-                self.malpractice_confirmed = True
-                cv2.rectangle(img, (0, 0), (img.shape[1], img.shape[0]), (0, 0, 255), 15)
-                cv2.putText(img, f"VIOLATION: {elapsed:.1f}s AWAY", (50, 240), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
-                self._trigger_violation(img, "Looking Away")
+                self.is_violating = True
+                self._draw_warning(img, f"MALPRACTICE: {int(elapsed)}s AWAY")
+                self._take_snapshot(img, "Looking_Away")
             else:
-                cv2.putText(img, f"WARNING: {elapsed:.1f}s", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 165, 255), 2)
+                cv2.putText(img, f"Warning: {elapsed:.1f}s", (10, 30), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 165, 255), 2)
+        
+        # 3. NORMAL STATE (Exactly 1 face)
+        else:
+            self.inattention_start = None
+            self.is_violating = False
+            (x, y, w, h) = faces[0]
+            cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
+            cv2.putText(img, "STATUS: ACTIVE", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
         return img
 
-    def _trigger_violation(self, img, reason):
-        # Save snapshot once every 3 seconds during violation
+    def _draw_warning(self, img, text):
+        # Draw thick red border and large warning text
+        cv2.rectangle(img, (0, 0), (img.shape[1], img.shape[0]), (0, 0, 255), 20)
+        cv2.putText(img, text, (50, 240), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
+
+    def _take_snapshot(self, img, reason):
+        # Prevent spamming: only take a snapshot every 3 seconds
         if time.time() - self.last_snap_time > 3:
             ts = datetime.datetime.now().strftime("%H-%M-%S")
-            filename = f"{SAVE_DIR}/{ts}_{reason.replace(' ', '_')}.jpg"
-            cv2.imwrite(filename, img)
+            cv2.imwrite(f"{SAVE_DIR}/{ts}_{reason}.jpg", img)
             self.last_snap_time = time.time()
-            # Note: We can't call st.write inside the transform thread, 
-            # so we handle UI updates in the main loop.
 
 # --- Main UI ---
 st.title("🛡️ Raasi AI: Secure Proctoring")
@@ -101,17 +103,20 @@ with col_vid:
     )
 
 with col_logs:
-    st.subheader("📊 Live Violation Log")
+    st.subheader("📊 Session Control")
     
-    # Check for violations to play sound
+    # This block checks the 'is_violating' flag from the video thread
     if webrtc_ctx.video_processor:
-        if webrtc_ctx.video_processor.malpractice_confirmed:
-            st.error("Malpractice Detected!")
-            play_browser_beep() # Trigger the JS sound
+        if webrtc_ctx.video_processor.is_violating:
+            st.error("⚠️ MALPRACTICE DETECTED")
+            play_browser_beep() # This plays the sound in the browser
+        else:
+            st.success("✅ Monitoring Active")
 
-    # Display Snapshots
+    # Display Snapshots Log
     st.divider()
-    if st.button("Refresh Log"):
-        files = sorted(os.listdir(SAVE_DIR), reverse=True)
-        for f in files[:5]:
-            st.image(f"{SAVE_DIR}/{f}", caption=f"Captured: {f}")
+    st.write("Recent Violations:")
+    if st.button("Refresh Snapshots"):
+        files = sorted([f for f in os.listdir(SAVE_DIR) if f.endswith('.jpg')], reverse=True)
+        for f in files[:4]:
+            st.image(f"{SAVE_DIR}/{f}", caption=f"Time: {f.split('_')[0]}")
