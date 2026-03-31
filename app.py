@@ -8,7 +8,7 @@ import os
 import streamlit.components.v1 as components
 
 # --- Setup ---
-st.set_page_config(page_title="Raasi AI Proctor", layout="wide")
+st.set_page_config(page_title=" AI Proctor", layout="wide")
 SAVE_DIR = "malpractice_logs"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
