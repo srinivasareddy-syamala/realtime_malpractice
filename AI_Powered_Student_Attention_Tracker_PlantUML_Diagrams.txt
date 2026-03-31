@@ -1,0 +1,619 @@
+@startuml System_Architecture_Diagram
+!theme blueprint
+title AI-Powered Student Attention Tracker - System Architecture
+
+package "Input Layer" {
+    [Webcam Feed] as webcam
+    [Configuration Files] as config
+    [User Interface] as ui
+}
+
+package "Processing Layer" {
+    [Computer Vision Module] as cv
+    [Face Detection] as face
+    [Eye Tracking] as eye
+    [Head Pose Estimation] as pose
+    [Machine Learning Engine] as ml
+}
+
+package "Analytics Layer" {
+    [Attention Score Calculator] as calc
+    [Alert System] as alert
+    [Analytics Engine] as analytics
+}
+
+package "Data Layer" {
+    [SQLite Database] as db
+    [Session Storage] as storage
+    [Report Generator] as reports
+}
+
+package "Output Layer" {
+    [Real-time Display] as display
+    [Audio Alerts] as audio
+    [Performance Reports] as perf_reports
+    [Data Export] as export
+}
+
+webcam --> cv
+config --> cv
+ui --> cv
+
+cv --> face
+cv --> eye
+cv --> pose
+face --> ml
+eye --> ml
+pose --> ml
+
+ml --> calc
+calc --> alert
+calc --> analytics
+
+analytics --> db
+alert --> storage
+calc --> storage
+
+storage --> reports
+db --> reports
+
+calc --> display
+alert --> audio
+reports --> perf_reports
+analytics --> export
+
+@enduml
+
+@startuml Class_Diagram
+!theme blueprint
+title AI-Powered Student Attention Tracker - Class Diagram
+
+class AttentionTracker {
+    -camera: VideoCapture
+    -face_detector: FaceDetector
+    -eye_tracker: EyeTracker
+    -pose_estimator: PoseEstimator
+    -ml_engine: MLEngine
+    -database: Database
+    +start_tracking(): void
+    +stop_tracking(): void
+    +get_attention_score(): float
+    +configure_alerts(): void
+}
+
+class FaceDetector {
+    -cascade_classifier: CascadeClassifier
+    -detection_threshold: float
+    +detect_faces(frame): List[Rectangle]
+    +extract_face_region(frame, face_rect): Mat
+    +calculate_face_score(face_region): float
+}
+
+class EyeTracker {
+    -eye_cascade: CascadeClassifier
+    -blink_threshold: float
+    -ear_threshold: float
+    +detect_eyes(face_region): List[Point]
+    +calculate_ear(eye_landmarks): float
+    +detect_blink(): boolean
+    +get_eye_score(): float
+}
+
+class PoseEstimator {
+    -model_points: List[Point3D]
+    -camera_matrix: Mat
+    -dist_coeffs: Mat
+    +estimate_pose(landmarks): Tuple[float, float, float]
+    +calculate_pose_score(yaw, pitch, roll): float
+}
+
+class MLEngine {
+    -weights: Dict[string, float]
+    -attention_model: Model
+    +calculate_attention_score(face_score, eye_score, pose_score): float
+    +update_weights(new_weights): void
+    +predict_attention_level(features): float
+}
+
+class AlertSystem {
+    -thresholds: Dict[string, float]
+    -audio_enabled: boolean
+    -visual_enabled: boolean
+    +check_attention_level(score): void
+    +trigger_alert(alert_type): void
+    +configure_thresholds(thresholds): void
+}
+
+class Database {
+    -connection: SQLiteConnection
+    -session_table: string
+    -analytics_table: string
+    +insert_session_data(session_data): void
+    +get_session_history(user_id): List[SessionData]
+    +generate_analytics(): AnalyticsData
+}
+
+class AnalyticsEngine {
+    -database: Database
+    -report_generator: ReportGenerator
+    +calculate_trends(): TrendData
+    +generate_session_report(session_id): Report
+    +export_data(format): string
+}
+
+class SessionData {
+    +session_id: string
+    +user_id: string
+    +start_time: DateTime
+    +end_time: DateTime
+    +attention_scores: List[float]
+    +alerts_triggered: int
+}
+
+AttentionTracker --> FaceDetector
+AttentionTracker --> EyeTracker
+AttentionTracker --> PoseEstimator
+AttentionTracker --> MLEngine
+AttentionTracker --> AlertSystem
+AttentionTracker --> Database
+AttentionTracker --> AnalyticsEngine
+Database --> SessionData
+AnalyticsEngine --> Database
+
+@enduml
+
+@startuml Sequence_Diagram_Attention_Monitoring
+!theme blueprint
+title Attention Monitoring Process - Sequence Diagram
+
+actor Student
+participant "Attention Tracker" as AT
+participant "Face Detector" as FD
+participant "Eye Tracker" as ET
+participant "Pose Estimator" as PE
+participant "ML Engine" as ML
+participant "Alert System" as AS
+participant "Database" as DB
+
+Student -> AT: Start monitoring session
+activate AT
+
+AT -> FD: Initialize face detection
+activate FD
+FD --> AT: Face detector ready
+deactivate FD
+
+AT -> ET: Initialize eye tracking
+activate ET
+ET --> AT: Eye tracker ready
+deactivate ET
+
+AT -> PE: Initialize pose estimation
+activate PE
+PE --> AT: Pose estimator ready
+deactivate PE
+
+loop Real-time monitoring
+    AT -> FD: Process video frame
+    activate FD
+    FD --> AT: Face regions detected
+    deactivate FD
+    
+    AT -> ET: Analyze eye regions
+    activate ET
+    ET --> AT: Eye tracking data
+    deactivate ET
+    
+    AT -> PE: Estimate head pose
+    activate PE
+    PE --> AT: Pose angles
+    deactivate PE
+    
+    AT -> ML: Calculate attention score
+    activate ML
+    ML --> AT: Attention score (0-100)
+    deactivate ML
+    
+    AT -> AS: Check alert thresholds
+    activate AS
+    
+    alt Attention below threshold
+        AS -> Student: Trigger alert notification
+        AS -> DB: Log alert event
+    end
+    deactivate AS
+    
+    AT -> DB: Store session data
+    activate DB
+    DB --> AT: Data stored
+    deactivate DB
+end
+
+Student -> AT: End monitoring session
+AT -> DB: Save final session report
+deactivate AT
+
+@enduml
+
+@startuml Sequence_Diagram_System_Initialization
+!theme blueprint
+title System Initialization - Sequence Diagram
+
+participant "Main Application" as MA
+participant "Config Manager" as CM
+participant "Camera Controller" as CC
+participant "Database Manager" as DM
+participant "UI Controller" as UI
+
+MA -> CM: Load configuration
+activate CM
+CM --> MA: Configuration loaded
+deactivate CM
+
+MA -> DM: Initialize database
+activate DM
+DM -> DM: Create tables if not exist
+DM --> MA: Database ready
+deactivate DM
+
+MA -> CC: Initialize camera
+activate CC
+CC -> CC: Detect available cameras
+CC --> MA: Camera initialized
+deactivate CC
+
+MA -> UI: Launch user interface
+activate UI
+UI --> MA: UI ready
+deactivate UI
+
+MA -> MA: Start main processing loop
+note right: System ready for attention monitoring
+
+@enduml
+
+@startuml Object_Diagram
+!theme blueprint
+title AI-Powered Student Attention Tracker - Object Diagram
+
+object ":AttentionTracker" as tracker {
+    session_id = "SESSION_001"
+    user_id = "student_123"
+    is_active = true
+    current_score = 85.7
+}
+
+object ":FaceDetector" as face_det {
+    detection_threshold = 0.8
+    min_face_size = (30, 30)
+    scale_factor = 1.1
+}
+
+object ":EyeTracker" as eye_track {
+    ear_threshold = 0.25
+    blink_threshold = 0.23
+    consecutive_frames = 3
+}
+
+object ":PoseEstimator" as pose_est {
+    yaw_angle = -5.2
+    pitch_angle = 2.1
+    roll_angle = 0.8
+}
+
+object ":MLEngine" as ml_eng {
+    face_weight = 0.3
+    eye_weight = 0.4
+    pose_weight = 0.2
+    size_weight = 0.1
+}
+
+object ":AlertSystem" as alert_sys {
+    low_threshold = 60.0
+    critical_threshold = 40.0
+    alert_enabled = true
+    sound_enabled = true
+}
+
+object ":Database" as db {
+    db_path = "attention_tracker.db"
+    connection_active = true
+    last_backup = "2024-01-15"
+}
+
+object ":SessionData" as session {
+    session_id = "SESSION_001"
+    start_time = "2024-01-15 14:30:00"
+    duration = 1800  // 30 minutes
+    avg_attention = 82.3
+}
+
+tracker --> face_det
+tracker --> eye_track
+tracker --> pose_est
+tracker --> ml_eng
+tracker --> alert_sys
+tracker --> db
+db --> session
+
+@enduml
+
+@startuml Use_Case_Diagram
+!theme blueprint
+title AI-Powered Student Attention Tracker - Use Case Diagram
+
+left to right direction
+
+actor Student as S
+actor Educator as E
+actor Administrator as A
+actor System as Sys
+
+rectangle "Attention Tracking System" {
+    usecase "Start Monitoring Session" as UC1
+    usecase "View Real-time Attention Score" as UC2
+    usecase "Receive Attention Alerts" as UC3
+    usecase "End Monitoring Session" as UC4
+    usecase "View Session Reports" as UC5
+    usecase "Configure Alert Settings" as UC6
+    usecase "Export Session Data" as UC7
+    usecase "Analyze Student Performance" as UC8
+    usecase "Manage User Accounts" as UC9
+    usecase "Configure System Settings" as UC10
+    usecase "Detect Face and Eyes" as UC11
+    usecase "Calculate Attention Score" as UC12
+    usecase "Store Session Data" as UC13
+    usecase "Generate Analytics" as UC14
+}
+
+S --> UC1
+S --> UC2
+S --> UC3
+S --> UC4
+S --> UC5
+S --> UC6
+
+E --> UC5
+E --> UC7
+E --> UC8
+E --> UC6
+
+A --> UC9
+A --> UC10
+A --> UC7
+A --> UC8
+
+Sys --> UC11
+Sys --> UC12
+Sys --> UC13
+Sys --> UC14
+
+UC1 ..> UC11 : includes
+UC1 ..> UC12 : includes
+UC1 ..> UC13 : includes
+UC2 ..> UC12 : includes
+UC3 ..> UC12 : includes
+UC5 ..> UC14 : includes
+UC8 ..> UC14 : includes
+
+@enduml
+
+@startuml Activity_Diagram
+!theme blueprint
+title Attention Monitoring Session - Activity Diagram
+
+start
+
+:Initialize System Components;
+
+:Load User Configuration;
+
+if (Camera Available?) then (yes)
+    :Initialize Camera Feed;
+else (no)
+    :Display Error Message;
+    stop
+endif
+
+:Start Monitoring Session;
+
+repeat
+    :Capture Video Frame;
+    
+    if (Face Detected?) then (yes)
+        :Extract Face Region;
+        
+        fork
+            :Detect Eyes;
+            :Calculate Eye Score;
+        fork again
+            :Estimate Head Pose;
+            :Calculate Pose Score;
+        end fork
+        
+        :Calculate Overall Attention Score;
+        
+        if (Score Below Threshold?) then (yes)
+            :Trigger Alert;
+            :Log Alert Event;
+        else (no)
+        endif
+        
+        :Update Real-time Display;
+        :Store Frame Data;
+        
+    else (no)
+        :Log No Face Detected;
+    endif
+    
+repeat while (Session Active?)
+
+:Generate Session Summary;
+
+:Save Session to Database;
+
+:Display Final Report;
+
+stop
+
+@enduml
+
+@startuml Component_Diagram
+!theme blueprint
+title AI-Powered Student Attention Tracker - Component Diagram
+
+package "Presentation Layer" {
+    component [User Interface] as UI
+    component [Real-time Display] as RTD
+    component [Alert Notifications] as AN
+}
+
+package "Application Layer" {
+    component [Attention Tracker Controller] as ATC
+    component [Session Manager] as SM
+    component [Configuration Manager] as CM
+}
+
+package "Computer Vision Layer" {
+    component [Face Detection Service] as FDS
+    component [Eye Tracking Service] as ETS
+    component [Pose Estimation Service] as PES
+}
+
+package "Machine Learning Layer" {
+    component [ML Engine] as MLE
+    component [Score Calculator] as SC
+    component [Alert Processor] as AP
+}
+
+package "Data Layer" {
+    component [Database Service] as DS
+    component [Analytics Service] as AS
+    component [Report Generator] as RG
+}
+
+package "Hardware Layer" {
+    component [Camera Interface] as CI
+    component [Audio Interface] as AI
+}
+
+UI --> ATC
+RTD --> ATC
+AN --> ATC
+
+ATC --> SM
+ATC --> CM
+ATC --> FDS
+ATC --> ETS
+ATC --> PES
+
+FDS --> MLE
+ETS --> MLE
+PES --> MLE
+
+MLE --> SC
+SC --> AP
+
+AP --> AN
+SC --> AS
+
+SM --> DS
+AS --> DS
+AS --> RG
+
+ATC --> CI
+AN --> AI
+
+@enduml
+
+@startuml Package_Diagram
+!theme blueprint
+title AI-Powered Student Attention Tracker - Package Diagram
+
+package "com.attentiontracker" {
+    
+    package "core" {
+        package "detection" {
+            class FaceDetector
+            class EyeTracker
+            class PoseEstimator
+        }
+        
+        package "processing" {
+            class MLEngine
+            class ScoreCalculator
+            class AlertProcessor
+        }
+        
+        package "tracking" {
+            class AttentionTracker
+            class SessionManager
+        }
+    }
+    
+    package "data" {
+        package "models" {
+            class SessionData
+            class UserProfile
+            class AlertEvent
+        }
+        
+        package "repositories" {
+            class DatabaseManager
+            class SessionRepository
+            class AnalyticsRepository
+        }
+    }
+    
+    package "services" {
+        package "analytics" {
+            class AnalyticsEngine
+            class ReportGenerator
+            class TrendAnalyzer
+        }
+        
+        package "alerts" {
+            class AlertSystem
+            class NotificationService
+        }
+    }
+    
+    package "ui" {
+        package "controllers" {
+            class MainController
+            class ConfigController
+            class ReportController
+        }
+        
+        package "views" {
+            class MainWindow
+            class SettingsDialog
+            class ReportViewer
+        }
+    }
+    
+    package "config" {
+        class ConfigurationManager
+        class SystemSettings
+        class UserPreferences
+    }
+    
+    package "utils" {
+        class ImageProcessor
+        class MathUtils
+        class FileHandler
+    }
+}
+
+' Dependencies
+core.tracking --> core.detection
+core.tracking --> core.processing
+core.processing --> data.models
+services.analytics --> data.repositories
+services.alerts --> core.processing
+ui.controllers --> core.tracking
+ui.controllers --> services.analytics
+ui.views --> ui.controllers
+config --> utils
+
+@enduml

@@ -1,0 +1,233 @@
+# Real Time Exam Malpractice Detection - Setup Guide
+
+## Quick Start
+
+### For First-Time Users (Recommended)
+1. Double-click **`setup_and_run.bat`** 
+   - Automatically installs all dependencies
+   - Creates necessary folders
+   - Starts the application
+
+### For Subsequent Runs
+- Double-click **`run_app.bat`** to run the application
+- Or use command: `python app.py`
+
+---
+
+## Available Batch Files
+
+### 1. **setup_and_run.bat** (RECOMMENDED for first run)
+   - Checks Python installation
+   - Installs all dependencies from requirements.txt
+   - Creates static/captured_images folder
+   - Starts Flask application
+   - No additional steps needed
+
+### 2. **install_dependencies.bat** (Install only)
+   - Checks Python and pip
+   - Installs dependencies
+   - Useful if you only want to install without running
+
+### 3. **run_app.bat** (Run only)
+   - Starts the Flask application
+   - Uses http://localhost:5000
+   - Useful for subsequent runs after setup
+
+---
+
+## Requirements.txt
+
+**File**: `requirements.txt`
+
+**Contents**:
+```
+Flask==2.0.1
+opencv-python==4.5.3.56
+numpy==1.21.2
+Werkzeug==2.0.1
+```
+
+**What each package does**:
+- **Flask**: Web framework for the application interface
+- **opencv-python**: Face detection and video processing
+- **numpy**: Numerical computations
+- **Werkzeug**: Password hashing and security
+
+---
+
+## Installation Steps
+
+### Method 1: Automatic (Easiest)
+```
+1. Double-click setup_and_run.bat
+2. Wait for installation to complete
+3. Browser opens to http://localhost:5000
+4. Done!
+```
+
+### Method 2: Manual Installation
+```
+1. Open Command Prompt in this folder
+2. Run: pip install -r requirements.txt
+3. Run: python app.py
+4. Open browser to http://localhost:5000
+```
+
+---
+
+## Troubleshooting
+
+### "Python not found"
+- Install Python 3.7+ from https://www.python.org/
+- During installation, check "Add Python to PATH"
+- Restart computer after installation
+
+### "Module not found error"
+- Run: `install_dependencies.bat`
+- Or: `pip install -r requirements.txt`
+
+### "Port 5000 already in use"
+- Edit last line of app.py
+- Change: `app.run(debug=True)` 
+- To: `app.run(debug=True, port=5001)`
+
+### "Webcam not working"
+- Check if camera is connected
+- Close other apps using camera
+- Grant camera permissions to Python
+
+### "Installation hangs"
+- Press Ctrl+C to cancel
+- Try: `pip install --upgrade pip`
+- Then run install_dependencies.bat again
+
+---
+
+## File Structure
+
+```
+Real time malpractice detection in classroom/
+??? setup_and_run.bat              ? Use this first time
+??? install_dependencies.bat       ? Install only
+??? run_app.bat                    ? Run after setup
+?
+??? app.py                         ? Main application
+??? requirements.txt               ? Dependencies list
+??? README.md                      ? Documentation
+?
+??? templates/
+?   ??? index.html
+?   ??? login.html
+?   ??? register.html
+?   ??? dashboard.html
+?
+??? static/
+?   ??? style.css
+?   ??? captured_images/          ? Auto-created
+?
+??? users.db                       ? Auto-created
+```
+
+---
+
+## Using the Application
+
+### Access URL
+```
+http://localhost:5000
+```
+
+### Register New Account
+1. Click "Register new account"
+2. Enter username and password
+3. Click "Register"
+4. Login with your credentials
+
+### Start Monitoring
+1. Click "Start Exam"
+2. Position face in camera
+3. System monitors attention
+4. After 3 seconds of not looking: Warning + Beep + Screenshot
+
+### View Dashboard
+1. Click "Dashboard"
+2. See statistics and captured moments
+3. Review incident history
+
+---
+
+## System Configuration
+
+### Inattention Threshold
+Default: 3 seconds
+
+To change, edit `app.py` line ~113:
+```python
+if inattention_duration >= 3.0:  # Change 3.0 to desired seconds
+```
+
+### Beep Sound Settings
+Default: 1000 Hz for 500ms
+
+To change, edit `app.py` line ~65:
+```python
+winsound.Beep(1000, 500)  # (frequency, duration_ms)
+```
+
+### Server Port
+Default: 5000
+
+To change, edit `app.py` last line:
+```python
+app.run(debug=True, port=5000)  # Change 5000 to desired port
+```
+
+---
+
+## Database
+
+**Type**: SQLite
+**File**: `users.db`
+**Storage**: Usernames and hashed passwords
+**Persistence**: Data survives application restarts
+
+To reset database:
+1. Delete `users.db`
+2. Restart application
+3. Database auto-recreates
+
+---
+
+## Features Summary
+
+? Real-time face detection
+? Attention monitoring  
+? 3-second inattention threshold
+? Visual warning (red box)
+? Audio alert (beep sound)
+? Automatic screenshot capture
+? User authentication
+? Persistent data storage
+? Analytics dashboard
+? Incident history
+
+---
+
+## Support
+
+For issues:
+1. Check error message in command window
+2. Review troubleshooting section above
+3. Ensure webcam is working
+4. Check Python version: `python --version`
+5. Check pip version: `pip --version`
+
+---
+
+## Version Info
+
+**Application**: Real Time Exam Malpractice Detection
+**Status**: Ready for use
+**Last Updated**: 2024-2025
+**Python**: 3.7+
+**Platform**: Windows, macOS, Linux
