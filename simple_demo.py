@@ -8,8 +8,13 @@ import numpy as np
 import time
 from datetime import datetime
 import os
-import winsound
+import sys
 from threading import Thread
+
+if sys.platform.startswith("win"):
+    import winsound
+else:
+    winsound = None
 
 # Create directory for evidence snapshots
 SNAPSHOT_DIR = 'lookaway_snapshots'
@@ -18,9 +23,11 @@ os.makedirs(SNAPSHOT_DIR, exist_ok=True)
 def play_alarm():
     """Play alarm sound for malpractice alert"""
     try:
-        frequency = 1000  # Hz
-        duration = 500    # milliseconds
-        winsound.Beep(frequency, duration)
+        if winsound:
+            frequency = 1000  # Hz
+            duration = 500    # milliseconds
+            winsound.Beep(frequency, duration)
+            return
     except:
         print("🚨 MALPRACTICE ALERT: Student showing suspicious behavior!")
 

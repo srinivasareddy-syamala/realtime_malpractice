@@ -5,8 +5,13 @@ import datetime
 import os
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
-import winsound
+import sys
 import time
+
+if sys.platform.startswith("win"):
+    import winsound
+else:
+    winsound = None
 
 app = Flask(__name__)
 app.secret_key = 'test123'  # Simple secret key for testing
@@ -57,7 +62,9 @@ def reset_stats():
 
 def play_beep():
     try:
-        winsound.Beep(1000, 500)
+        if winsound:
+            winsound.Beep(1000, 500)
+            return
     except:
         try:
             os.system('echo -e "\a"')
