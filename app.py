@@ -90,7 +90,7 @@ class ProctorProcessor(VideoTransformerBase):
             self.last_snap_time = time.time()
 
 # --- Main UI ---
-st.title("🛡️ Raasi AI: Secure Proctoring")
+st.title("🛡️ AI: Secure Proctoring")
 
 col_vid, col_logs = st.columns([2, 1])
 
