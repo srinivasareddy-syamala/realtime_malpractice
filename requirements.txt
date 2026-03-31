@@ -1,5 +1,6 @@
-Flask>=3.0.0
-opencv-python-headless>=4.10.0.0
-numpy>=2.1.0
-streamlit>=1.35.0
+
 streamlit_webrtc
+streamlit
+streamlit-webrtc
+opencv-python-headless
+numpy
