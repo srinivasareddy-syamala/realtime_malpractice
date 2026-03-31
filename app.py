@@ -9,7 +9,7 @@ import base64
 import streamlit.components.v1 as components
 
 # --- 1. SETUP & DIRECTORIES ---
-st.set_page_config(page_title="Raasi AI Proctor", layout="wide")
+st.set_page_config(page_title="AI Proctor", layout="wide")
 SAVE_DIR = "malpractice_logs"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
@@ -94,7 +94,7 @@ class ProctorProcessor(VideoTransformerBase):
             self.last_snap_time = time.time()
 
 # --- 4. MAIN STREAMLIT UI ---
-st.title("🛡️ Raasi AI: Secure Proctoring System")
+st.title("🛡️ AI: Secure Proctoring System")
 st.markdown("Monitoring for **Multiple People** and **Extended Absence (2s+)**.")
 
 col_vid, col_logs = st.columns([2, 1])
