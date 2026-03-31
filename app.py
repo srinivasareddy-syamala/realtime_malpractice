@@ -5,16 +5,34 @@ import datetime
 import os
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
-import winsound
 import time
+import platform
 
 app = Flask(__name__)
 app.secret_key = 'test123'  # Simple secret key for testing
 
-# Initialize OpenCV
+# --- FIX 1: Platform-Independent Sound ---
+def play_beep():
+    """Plays a beep sound. Works on Windows and attempts a terminal bell on Linux/Mac."""
+    try:
+        if platform.system() == "Windows":
+            import winsound
+            winsound.Beep(1000, 500)
+        else:
+            # Linux/Mac terminal bell
+            print('\a') 
+            os.system('echo -e "\a"')
+    except Exception as e:
+        print(f"Audio alert failed: {e}")
+
+# --- FIX 2: Graceful Camera Initialization ---
+# Note: VideoCapture(0) works on your LOCAL machine. 
+# On Cloud servers, this will initialize but success will be False.
 cap = cv2.VideoCapture(0)
 
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+# Use absolute path for cascade to prevent loading errors
+cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+face_cascade = cv2.CascadeClassifier(cascade_path)
 
 # Create directories
 SAVE_DIR = 'static/captured_images'
@@ -55,31 +73,32 @@ def reset_stats():
     class_session['inattention_start_time'] = None
     class_session['inattention_warned'] = False
 
-def play_beep():
-    try:
-        winsound.Beep(1000, 500)
-    except:
-        try:
-            os.system('echo -e "\a"')
-        except:
-            pass
-
 def generate_frames():
     while True:
         if not class_session['active']:
+            # Show a static "Idle" frame when session isn't active
             blank_frame = np.zeros((480, 640, 3), np.uint8)
             cv2.putText(blank_frame, "Exam Not Started", (150, 240),
-                       cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
             ret, buffer = cv2.imencode('.jpg', blank_frame)
-            frame = buffer.tobytes()
+            frame_bytes = buffer.tobytes()
             yield (b'--frame\r\n'
-                  b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+            time.sleep(0.1) # Prevent CPU spiking
             continue
 
         try:
             success, frame = cap.read()
             if not success:
-                break
+                # If camera fails (common on cloud servers), show error message
+                error_frame = np.zeros((480, 640, 3), np.uint8)
+                cv2.putText(error_frame, "Camera Source Not Found", (120, 240),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+                ret, buffer = cv2.imencode('.jpg', error_frame)
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+                time.sleep(1)
+                continue
 
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             faces = face_cascade.detectMultiScale(gray, 1.1, 4)
@@ -96,7 +115,7 @@ def generate_frames():
                 class_session['inattention_warned'] = False
             else:
                 class_session['session_stats']['looking_away'] += 1
-                cv2.putText(frame, "Not Attentive!", (10, 30),
+                cv2.putText(frame, "NOT ATTENTIVE!", (10, 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                 
                 if class_session['inattention_start_time'] is None:
@@ -104,30 +123,26 @@ def generate_frames():
                 
                 inattention_duration = time.time() - class_session['inattention_start_time']
                 
-                if inattention_duration >= 3.0 and not class_session['inattention_warned']:
+                if inattention_duration >= 3.0:
+                    # Draw Warning Overlay
                     cv2.rectangle(frame, (50, 100), (590, 200), (0, 0, 255), 3)
                     cv2.putText(frame, "MALPRACTICE WARNING", (100, 150),
                                cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
                     
-                    play_beep()
-                    class_session['inattention_warned'] = True
-                    
-                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
-                    image_path = os.path.join(SAVE_DIR, f'malpractice_warning_{timestamp}.jpg')
-                    cv2.imwrite(image_path, frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
-                elif inattention_duration >= 3.0:
-                    cv2.rectangle(frame, (50, 100), (590, 200), (0, 0, 255), 3)
-                    cv2.putText(frame, "MALPRACTICE WARNING", (100, 150),
-                               cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
-                else:
-                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                    image_path = os.path.join(SAVE_DIR, f'inattentive_{timestamp}.jpg')
-                    cv2.imwrite(image_path, frame)
+                    if not class_session['inattention_warned']:
+                        play_beep()
+                        class_session['inattention_warned'] = True
+                        
+                        # Save Warning Image
+                        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                        image_path = os.path.join(SAVE_DIR, f'malpractice_{timestamp}.jpg')
+                        cv2.imwrite(image_path, frame)
 
             ret, buffer = cv2.imencode('.jpg', frame)
-            frame = buffer.tobytes()
+            frame_bytes = buffer.tobytes()
             yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+            
         except Exception as e:
             print(f"Error in generate_frames: {e}")
             continue
@@ -203,23 +218,18 @@ def dashboard():
         return redirect(url_for('login'))
     
     images = []
-    for f in os.listdir(SAVE_DIR):
-        if f.endswith('.jpg'):
-            try:
-                if f.startswith('malpractice_warning_'):
-                    timestamp = f.replace('malpractice_warning_', '').replace('.jpg', '')
-                    label = 'Malpractice Warning'
-                else:
-                    timestamp = f.replace('inattentive_', '').replace('.jpg', '')
-                    label = 'Inattentive'
-                formatted_time = datetime.datetime.strptime(timestamp, "%Y%m%d_%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
-                images.append({
-                    'path': f,
-                    'time': formatted_time,
-                    'label': label
-                })
-            except:
-                continue
+    if os.path.exists(SAVE_DIR):
+        for f in os.listdir(SAVE_DIR):
+            if f.endswith('.jpg'):
+                try:
+                    # Simplified parsing for the dashboard
+                    label = 'Malpractice Warning' if 'malpractice' in f else 'Inattentive'
+                    images.append({
+                        'path': f,
+                        'label': label
+                    })
+                except:
+                    continue
     
     images.sort(key=lambda x: x['path'], reverse=True)
     
@@ -253,4 +263,6 @@ def video_feed():
                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Determine port for cloud compatibility
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
